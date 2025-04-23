@@ -395,18 +395,20 @@ const GeofenceForm: React.FC<GeofenceFormProps> = ({
           </div>
 
           {/* Address */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Address
-            </label>
-            <textarea
-              value={finalAddress}
-              readOnly
-              className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md h-20 resize-none"
-            />
-          </div>
+          {editMode && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Address
+              </label>
+              <textarea
+                value={finalAddress}
+                readOnly
+                className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md h-20 resize-none"
+              />
+            </div>
+          )}
 
-          <div className="flex justify-end mt-6">
+          <div className="flex justify-start mt-6">
             <button
               type="button"
               onClick={() => {

@@ -49,7 +49,7 @@ const GeozoneTable: React.FC<GeozoneTableProps> = ({
         className={`fixed z-30 bg-white shadow-md rounded-r-md p-2 flex items-center justify-center
     ${
       isTableVisible
-        ? "left-[512px] top-[300px] -translate-y-1/2"
+        ? "left-[472px] top-[300px] -translate-y-1/2"
         : "left-6 top-[300px] -translate-y-1/2"
     }`}
       >

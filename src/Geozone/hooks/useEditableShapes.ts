@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { EditableShapesOptions } from '../types';
 
-
 interface UseEditableShapesReturn {
   isEditMode: boolean;
   toggleEditMode: () => void;
@@ -37,13 +36,13 @@ export const useEditableShapes = ({
 
       geozoneData.forEach((geozone:any) => {
         try {
-          if (!geozone || !geozone.shapeData) {
+          if (!geozone || !geozone.geoCodeData?.geometry) {
             console.warn("Invalid geozone data", geozone);
             return;
           }
 
-          const { shapeData } = geozone;
-          const { type, coordinates, radius }: any = shapeData;
+          const { geometry } = geozone.geoCodeData;
+          const { type, coordinates, radius } = geometry;
 
           if (!type || !coordinates) {
             console.warn("Missing type or coordinates", { type, coordinates });
@@ -53,7 +52,7 @@ export const useEditableShapes = ({
           let shape: any = null;
 
           switch (type) {
-            case "circle":
+            case "Circle":
               if (!Array.isArray(coordinates) || coordinates.length < 2) {
                 console.warn("Invalid circle coordinates", coordinates);
                 return;
@@ -76,16 +75,16 @@ export const useEditableShapes = ({
 
               // Add event listeners
               google.maps.event.addListener(shape, "radius_changed", () => {
-                handleShapeChange(geozone._id, shape, "circle");
+                handleShapeChange(geozone._id, shape, "Circle");
               });
 
               google.maps.event.addListener(shape, "center_changed", () => {
-                handleShapeChange(geozone._id, shape, "circle");
+                handleShapeChange(geozone._id, shape, "Circle");
               });
 
               break;
 
-            case "polygon":
+            case "Polygon":
               if (!Array.isArray(coordinates) || !coordinates.length) {
                 console.warn("Invalid polygon coordinates", coordinates);
                 return;
@@ -111,15 +110,15 @@ export const useEditableShapes = ({
                 // Add event listeners to the path
                 const polygonPath = shape.getPath();
                 google.maps.event.addListener(polygonPath, "insert_at", () => {
-                  handleShapeChange(geozone._id, shape, "polygon");
+                  handleShapeChange(geozone._id, shape, "Polygon");
                 });
 
                 google.maps.event.addListener(polygonPath, "remove_at", () => {
-                  handleShapeChange(geozone._id, shape, "polygon");
+                  handleShapeChange(geozone._id, shape, "Polygon");
                 });
 
                 google.maps.event.addListener(polygonPath, "set_at", () => {
-                  handleShapeChange(geozone._id, shape, "polygon");
+                  handleShapeChange(geozone._id, shape, "Polygon");
                 });
               } catch (err) {
                 console.error("Error creating polygon:", err);
@@ -127,7 +126,7 @@ export const useEditableShapes = ({
 
               break;
 
-            case "rectangle":
+            case "Rectangle":
               // For Rectangle, we need to construct bounds from coordinates
               // Assuming coordinates is in format [[ne_lat, ne_lng], [sw_lat, sw_lng]]
               if (
@@ -160,7 +159,7 @@ export const useEditableShapes = ({
 
                   // Add event listener
                   google.maps.event.addListener(shape, "bounds_changed", () => {
-                    handleShapeChange(geozone._id, shape, "rectangle");
+                    handleShapeChange(geozone._id, shape, "Rectangle");
                   });
                 } catch (err) {
                   console.error("Error creating rectangle:", err);
@@ -235,20 +234,20 @@ export const useEditableShapes = ({
       let radius: number | undefined;
 
       switch (shapeType) {
-        case "circle":
+        case "Circle":
           const center = shape.getCenter();
           coordinates = [center.lat(), center.lng()];
           radius = shape.getRadius();
           break;
 
-        case "polygon":
+        case "Polygon":
           const path = shape.getPath();
           coordinates = path
             .getArray()
             .map((latLng: any) => [latLng.lat(), latLng.lng()]);
           break;
 
-        case "rectangle":
+        case "Rectangle":
           const bounds = shape.getBounds();
           const ne = bounds.getNorthEast();
           const sw = bounds.getSouthWest();
@@ -263,15 +262,21 @@ export const useEditableShapes = ({
           return;
       }
 
-      // Create updated shape data
-      const updatedShapeData = {
-        type: shapeType,
-        coordinates,
-        ...(radius !== undefined && { radius }),
+      // Create updated geometry data in the correct format
+      const updatedPayload = {
+        ...geozone,
+        geoCodeData: {
+          type: "Feature",
+          geometry: {
+            type: shapeType,
+            coordinates,
+            ...(radius !== undefined && { radius }),
+          }
+        }
       };
 
       // Update geozone
-      await updateGeozone(geozoneId, { shapeData: updatedShapeData });
+      await updateGeozone(geozoneId, updatedPayload);
     } catch (error) {
       console.error("Error updating geozone:", error);
       setError("Failed to update shape. Please try again.");

@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import {
   PencilIcon,
-  TrashIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   SearchIcon,
 } from "lucide-react";
 import { GeoZone } from "../types";
+import DeletePopover from "./DeletePopover";
+// import DeletePopover from "./DeletePopover"; // Import the DeletePopover component
 
 interface GeozoneTableProps {
   geozoneData: GeoZone[];
@@ -36,7 +37,6 @@ const GeozoneTable: React.FC<GeozoneTableProps> = ({
   total,
 }) => {
   const [isTableVisible, setIsTableVisible] = useState(true);
-  console.log({ isTableVisible });
   const toggleTable = () => {
     setIsTableVisible(!isTableVisible);
   };
@@ -49,8 +49,8 @@ const GeozoneTable: React.FC<GeozoneTableProps> = ({
         className={`fixed z-30 bg-white shadow-md rounded-r-md p-2 flex items-center justify-center
     ${
       isTableVisible
-        ? "left-[450px] top-1/2 -translate-y-1/2"
-        : "left-0 top-1/2 -translate-y-1/2"
+        ? "left-[512px] top-[300px] -translate-y-1/2"
+        : "left-6 top-[300px] -translate-y-1/2"
     }`}
       >
         {isTableVisible ? (
@@ -79,8 +79,8 @@ const GeozoneTable: React.FC<GeozoneTableProps> = ({
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
+            <div className="overflow-x-auto w-full">
+              <table className="min-w-full table-fixed">
                 <thead>
                   <tr className="bg-[#F1F1F1]">
                     <th className="py-3 px-4 text-left text-sm font-medium">
@@ -136,12 +136,12 @@ const GeozoneTable: React.FC<GeozoneTableProps> = ({
                             >
                               <PencilIcon className="h-4 w-4" />
                             </button>
-                            <button
-                              onClick={() => handleDeleteGeozone(item._id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                            </button>
+                            {/* Replace the delete button with our DeletePopover component */}
+                            <DeletePopover
+                              title={`Delete Geozone`}
+                              description={`Are you sure you want to delete the "${item.name}" geozone?`}
+                              onDelete={() => handleDeleteGeozone(item._id)}
+                            />
                           </div>
                         </td>
                       </tr>

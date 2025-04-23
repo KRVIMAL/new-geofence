@@ -1,7 +1,7 @@
 // services/geozone.service.ts
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000/api';
+const BASE_URL = import.meta.env.VITE_BASE_URL || 'https://api-dev.k8s.imztech.io/api/v1/geofence';
 const USER_SERVICE_URL = import.meta.env.VITE_USER_SERVICE_URL || 'http://localhost:3000/api/users';
 
 // Fetch geozone list

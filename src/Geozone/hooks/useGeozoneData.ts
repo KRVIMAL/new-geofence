@@ -1,7 +1,7 @@
 // hooks/useGeozoneData.ts
 import { useState, useEffect, useCallback } from "react";
 import { GeoZone, User, FormField, GeozoneDataOptions } from "../types/index";
-
+import toast, { Toaster } from 'react-hot-toast';
 // Import these functions from your API service
 import {
   fetchGeozoneHandler,
@@ -260,18 +260,19 @@ export const useGeozoneData = ({ google, map }: GeozoneDataOptions): any => {
       setLoading(true);
 
       if (edit && selectedRowData) {
-        await updateGeozone({
+      const res=  await updateGeozone({
           input: {
             ...payload,
             _id: selectedRowData._id,
           },
         });
+        toast.success(res?.message);
       } else {
-        await createGeozone({
+      const res=  await createGeozone({
           input: payload,
         });
+      toast.success(res.message);
       }
-
       // Clear form and close modal
       setFormField(defaultFormField);
       setOpenModal(false);
@@ -280,8 +281,8 @@ export const useGeozoneData = ({ google, map }: GeozoneDataOptions): any => {
 
       // Refresh data
       fetchGeozones();
-    } catch (error) {
-      console.error("Error saving geozone:", error);
+    } catch (error:any) {
+      toast.error(error.message);
     } finally {
       setLoading(false);
     }
@@ -333,8 +334,8 @@ const handleEditGeozone = (geozone: any) => {
   const handleDeleteGeozone = async (id: string) => {
     try {
       setLoading(true);
-      await deleteGeozone(id);
-
+    const res=  await deleteGeozone(id);
+    toast.success(res.message);
       // Remove the shape from the map
       shapes.forEach((shape) => {
         if (shape?.geozoneData?._id === id) {
@@ -346,8 +347,8 @@ const handleEditGeozone = (geozone: any) => {
       setShapes(shapes.filter((shape) => shape?.geozoneData?._id !== id));
 
       fetchGeozones();
-    } catch (error) {
-      console.error("Error deleting geozone:", error);
+    } catch (error:any) {
+      toast.error(error.message);
     } finally {
       setLoading(false);
     }
@@ -375,7 +376,7 @@ const handleEditGeozone = (geozone: any) => {
     });
   };
 
-  // Update geozone shape
+
   // Update geozone shape
   const updateGeozoneShape = async (id: string, shapeData: any) => {
     try {
@@ -391,16 +392,17 @@ const handleEditGeozone = (geozone: any) => {
 
       console.log("Updating geozone with payload:", payload);
 
-      await updateGeozone(payload);
-
+     const res= await updateGeozone(payload);
+     toast.success(res.message);
       // Refresh the data after update
       await fetchGeozones();
 
       setLoading(false);
       return Promise.resolve();
-    } catch (error) {
-      console.error("Error updating geozone shape:", error);
+    } catch (error:any) {
+      
       setLoading(false);
+      toast.error(error.message);
       return Promise.reject(error);
     }
   };

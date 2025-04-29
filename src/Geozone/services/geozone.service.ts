@@ -110,7 +110,6 @@ export const searchUsers = async (page = 1, limit = 10, search = {}) => {
       {
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': localStorage.getItem('token') || '',
         },
       }
     );

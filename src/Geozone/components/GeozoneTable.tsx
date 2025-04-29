@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   PencilIcon,
   ChevronLeftIcon,
@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { GeoZone } from "../types";
 import DeletePopover from "./DeletePopover";
-// import DeletePopover from "./DeletePopover"; // Import the DeletePopover component
+import Pagination from "./Pagination"; // Import our improved Pagination component
 
 interface GeozoneTableProps {
   geozoneData: GeoZone[];
@@ -37,9 +37,40 @@ const GeozoneTable: React.FC<GeozoneTableProps> = ({
   total,
 }) => {
   const [isTableVisible, setIsTableVisible] = useState(true);
+  
+  // Ensure we have valid values for page and limit
+  const safePage = !isNaN(page) && page > 0 ? page : 1;
+  const safeLimit = !isNaN(limit) && limit > 0 ? limit : 10;
+  
+  // Calculate total pages - this is crucial for pagination to work correctly
+  const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+  
+  // Check if current page exceeds total pages after changing limit
+  useEffect(() => {
+    if (safePage > totalPages && totalPages > 0) {
+      setPage(totalPages);
+    }
+  }, [safeLimit, total, safePage, totalPages, setPage]);
+  
+  // Calculate row number for each item
+  const getRowNumber = (index: number): number => {
+    return (safePage - 1) * safeLimit + index + 1;
+  };
+  
+  // Toggle table visibility
   const toggleTable = () => {
     setIsTableVisible(!isTableVisible);
   };
+
+  // Debug logs to help troubleshoot pagination
+  useEffect(() => {
+    console.log("Pagination debug info:");
+    console.log("- Current page:", safePage);
+    console.log("- Items per page:", safeLimit);
+    console.log("- Total items:", total);
+    console.log("- Total pages calculated:", totalPages);
+    console.log("- Current data length:", geozoneData.length);
+  }, [safePage, safeLimit, total, totalPages, geozoneData.length]);
 
   return (
     <div className="relative">
@@ -106,6 +137,12 @@ const GeozoneTable: React.FC<GeozoneTableProps> = ({
                         </div>
                       </td>
                     </tr>
+                  ) : geozoneData.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-4 text-center text-gray-500">
+                        No geozones found
+                      </td>
+                    </tr>
                   ) : (
                     geozoneData.map((item, index) => (
                       <tr
@@ -115,7 +152,7 @@ const GeozoneTable: React.FC<GeozoneTableProps> = ({
                         }
                       >
                         <td className="py-3 px-4 text-sm">
-                          {(page - 1) * limit + index + 1}
+                          {getRowNumber(index)}
                         </td>
                         <td className="py-3 px-4 text-sm">
                           {item.name || "--"}
@@ -136,7 +173,6 @@ const GeozoneTable: React.FC<GeozoneTableProps> = ({
                             >
                               <PencilIcon className="h-4 w-4" />
                             </button>
-                            {/* Replace the delete button with our DeletePopover component */}
                             <DeletePopover
                               title={`Delete Geozone`}
                               description={`Are you sure you want to delete the "${item.name}" geozone?`}
@@ -151,82 +187,16 @@ const GeozoneTable: React.FC<GeozoneTableProps> = ({
               </table>
             </div>
 
-            <div className="flex justify-between items-center p-4 border-t">
-              {/* Limit Selection */}
-              <div className="flex items-center">
-                <span className="text-gray-600 mr-2 text-sm">
-                  Row Per Page:
-                </span>
-                <select
-                  value={limit}
-                  onChange={(e) => {
-                    setLimit(Number(e.target.value));
-                    setPage(1);
-                  }}
-                  className="bg-white border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 text-sm"
-                >
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
-                  <option value={15}>15</option>
-                  <option value={20}>20</option>
-                </select>
-              </div>
-
-              {/* Page Navigation */}
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setPage(Math.max(page - 1, 1))}
-                  disabled={page === 1}
-                  className="p-1 rounded-md border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
-                >
-                  <ChevronLeftIcon className="h-5 w-5" />
-                </button>
-
-                {Array.from(
-                  { length: Math.min(3, Math.ceil(total / limit)) },
-                  (_, i) => {
-                    // Calculate page numbers to show based on current page
-                    let pageNum;
-                    const totalPages = Math.ceil(total / limit);
-
-                    if (totalPages <= 3) {
-                      pageNum = i + 1;
-                    } else if (page <= 2) {
-                      pageNum = i + 1;
-                    } else if (page >= totalPages - 1) {
-                      pageNum = totalPages - 2 + i;
-                    } else {
-                      pageNum = page - 1 + i;
-                    }
-
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setPage(pageNum)}
-                        className={`w-8 h-8 flex items-center justify-center rounded-md 
-                          ${
-                            page === pageNum
-                              ? "bg-blue-500 text-white"
-                              : "bg-white text-gray-700 border border-gray-300"
-                          }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  }
-                )}
-
-                <button
-                  onClick={() =>
-                    setPage(Math.min(page + 1, Math.ceil(total / limit)))
-                  }
-                  disabled={page === Math.ceil(total / limit)}
-                  className="p-1 rounded-md border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
-                >
-                  <ChevronRightIcon className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
+            {/* Show pagination only if there are items */}
+            {/* {total > 0 && ( */}
+            <Pagination
+  currentPage={safePage}
+  totalItems={total}
+  limit={safeLimit}
+  onPageChange={setPage}
+  onLimitChange={setLimit}
+/>
+            {/* )} */}
           </>
         )}
       </div>

@@ -1,7 +1,7 @@
 // hooks/useGeozoneData.ts
 import { useState, useEffect, useCallback } from "react";
 import { GeoZone, User, FormField, GeozoneDataOptions } from "../types/index";
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 // Import these functions from your API service
 import {
   fetchGeozoneHandler,
@@ -28,7 +28,7 @@ interface UseGeozoneDataReturn {
   isOpen: boolean;
   setOpenModal: (open: boolean) => void;
   formField: FormField;
-  setFormField: (field: Partial<FormField>) => void;
+  setFormField: any;
   addGeozoneHandler: (selectedShape: any) => void;
   handleEditGeozone: (geozone: GeoZone) => void;
   handleDeleteGeozone: (id: string) => void;
@@ -46,12 +46,12 @@ const defaultFormField: FormField = {
   shapeData: null,
 };
 
-export const useGeozoneData = ({ google, map }: GeozoneDataOptions): any => {
+export const useGeozoneData = ({ google, map }: GeozoneDataOptions): UseGeozoneDataReturn => {
   // State for geozone data
   const [geozoneData, setGeozoneData] = useState<GeoZone[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [page, setPage] = useState<number>(1);
-  const [limit, setLimit] = useState<number>(10);
+  const [page, setPageInternal] = useState<number>(1);
+  const [limit, setLimitInternal] = useState<number>(10);
   const [total, setTotal] = useState<number>(0);
   const [searchText, setSearchText] = useState<string>("");
 
@@ -66,35 +66,102 @@ export const useGeozoneData = ({ google, map }: GeozoneDataOptions): any => {
 
   // State for map shapes
   const [shapes, setShapes] = useState<any[]>([]);
+  
+  // Track if we should preserve the page number when changing limit
+  const [shouldPreservePage, setShouldPreservePage] = useState(false);
 
-  // Fetch geozone data
+  // Safe page setter that prevents NaN values
+  const setPage = (newPage: number) => {
+    // Ensure page is a number and >= 1
+    if (isNaN(newPage) || newPage < 1) {
+      setPageInternal(1);
+      return;
+    }
+    
+    // Calculate total pages based on current limit and total items
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    
+    // If the requested page is greater than total pages, set to max page
+    if (newPage > totalPages && totalPages > 0) {
+      setPageInternal(totalPages);
+    } else {
+      setPageInternal(newPage);
+    }
+  };
+
+  // Safe limit setter that prevents NaN values
+  const setLimit = (newLimit: number) => {
+    // Ensure limit is a number and >= 5
+    if (isNaN(newLimit) || newLimit < 5) {
+      setLimitInternal(10);
+    } else {
+      setLimitInternal(newLimit);
+      // Don't auto-change the page - let the user manually navigate
+    }
+  };
+
+  // Recalculate page when limit changes
+  useEffect(() => {
+    if (shouldPreservePage) {
+      setShouldPreservePage(false);
+      
+      // Calculate new total pages with new limit
+      const newTotalPages = Math.ceil(total / limit);
+      
+      // If current page is greater than new total pages, adjust it
+      if (page > newTotalPages && newTotalPages > 0) {
+        setPageInternal(newTotalPages);
+      }
+      // Otherwise keep the same page if it's still valid
+    }
+  }, [limit, total, page, shouldPreservePage]);
+
+  // Fetch geozone data with safe pagination parameters
   const fetchGeozones = useCallback(async () => {
     try {
       setLoading(true);
+      
+      // Use safe values for API calls
+      const safePage = !isNaN(page) ? page : 1;
+      const safeLimit = !isNaN(limit) ? limit : 10;
 
       let response;
       if (searchText) {
         response = await searchGeozones({
-          input: { page, limit, searchText },
+          input: { page: safePage, limit: safeLimit, searchText },
         });
+        
         const { searchGeozone } = response;
-        setGeozoneData(searchGeozone.data);
-        setTotal(searchGeozone.paginatorInfo.count);
+        setGeozoneData(searchGeozone.data || []);
+        setTotal(searchGeozone.paginatorInfo.count || 0);
       } else {
         response = await fetchGeozoneHandler({
-          input: { page, limit },
+          input: { page: safePage, limit: safeLimit },
         });
-        setGeozoneData(response.data.data);
-        setTotal(response.total);
+        
+        // Make sure we have valid data
+        if (response && response.data) {
+          setGeozoneData(response.data.data || []);
+          setTotal(response.total || response.data.total);
+        } else {
+          setGeozoneData([]);
+          setTotal(0);
+          console.error("Invalid response format:", response);
+        }
       }
+      
+      // Log pagination details for debugging
+      console.log(`Fetched geozones: Page ${safePage}, Limit ${safeLimit}, Total ${response.total || 0}`);
     } catch (error) {
       console.error("Error fetching geozones:", error);
-    } finally {
+      toast.error("Failed to load geozones");
+      setGeozoneData([]);
+      setTotal(0);
+    }
+     finally {
       setLoading(false);
     }
   }, [page, limit, searchText]);
-
-  console.log({ geozoneData });
 
   // Fetch users
   const fetchUsers = useCallback(async () => {
@@ -102,10 +169,11 @@ export const useGeozoneData = ({ google, map }: GeozoneDataOptions): any => {
       setLoading(true);
       const response = await searchUsers(1, 100, {});
       setUsers(response.data || []);
-      setLoading(false);
     } catch (error) {
       console.error("Error fetching users:", error);
       setUsers([]);
+      toast.error("Failed to load users");
+    } finally {
       setLoading(false);
     }
   }, []);
@@ -119,20 +187,20 @@ export const useGeozoneData = ({ google, map }: GeozoneDataOptions): any => {
     fetchGeozones();
   }, [fetchGeozones]);
 
-  // Update search results
+  // Update search results with debounce
   useEffect(() => {
     const debounceSearch = setTimeout(() => {
       if (page === 1) {
         fetchGeozones();
       } else {
-        setPage(1);
+        // Reset to page 1 when search text changes
+        setPageInternal(1);
       }
     }, 500);
 
     return () => clearTimeout(debounceSearch);
   }, [searchText]);
 
-  // Display geozones on map
   // Display geozones on map
   useEffect(() => {
     if (!map || !google || !geozoneData?.length) return;
@@ -346,8 +414,15 @@ const handleEditGeozone = (geozone: any) => {
       // Remove from shapes array
       setShapes(shapes.filter((shape) => shape?.geozoneData?._id !== id));
 
-      fetchGeozones();
-    } catch (error:any) {
+      // Check if deleting the last item on a page
+      if (geozoneData.length === 1 && page > 1) {
+        // Go to previous page
+        setPage(page - 1);
+      } else {
+        // Stay on current page and refresh
+        fetchGeozones();
+      }
+    } catch (error: any) {
       toast.error(error.message);
     } finally {
       setLoading(false);
@@ -390,17 +465,15 @@ const handleEditGeozone = (geozone: any) => {
         },
       };
 
-      console.log("Updating geozone with payload:", payload);
-
-     const res= await updateGeozone(payload);
-     toast.success(res.message);
+      const res = await updateGeozone(payload);
+      toast.success(res.message);
+      
       // Refresh the data after update
       await fetchGeozones();
 
       setLoading(false);
       return Promise.resolve();
-    } catch (error:any) {
-      
+    } catch (error: any) {
       setLoading(false);
       toast.error(error.message);
       return Promise.reject(error);

@@ -13,7 +13,7 @@ import {
 } from "../services/geozone.service";
 
 interface UseGeozoneDataReturn {
-  geozoneData: GeoZone[];
+  geozoneData: any;
   users: User[];
   loading: boolean;
   page: number;
@@ -130,28 +130,33 @@ export const useGeozoneData = ({ google, map }: GeozoneDataOptions): UseGeozoneD
         response = await searchGeozones({
           input: { page: safePage, limit: safeLimit, searchText },
         });
-        
-        const { searchGeozone } = response;
-        setGeozoneData(searchGeozone.data || []);
-        setTotal(searchGeozone.paginatorInfo.count || 0);
+        if (response && response.searchGeozone) {
+          const { searchGeozone } = response;
+          // Ensure we always have an array for geozoneData
+          setGeozoneData(Array.isArray(searchGeozone.data.data) ? searchGeozone.data : []);
+          setTotal(searchGeozone.paginatorInfo.count || 0);
+        } else {
+          // If search response structure is unexpected, reset data
+          setGeozoneData([]);
+          setTotal(0);
+          console.error("Invalid search response structure:", response);
+        }
       } else {
         response = await fetchGeozoneHandler({
           input: { page: safePage, limit: safeLimit },
         });
         
-        // Make sure we have valid data
-        if (response && response.data) {
-          setGeozoneData(response.data.data || []);
-          setTotal(response.total || response.data.total);
+        // Ensure we always have an array for geozoneData
+        if (response && response.data && Array.isArray(response.data.data)) {
+          setGeozoneData(response.data.data);
+          // Use the right total count from your API
+          setTotal(response.total || response.data.total || response.data.data.length || 0);
         } else {
           setGeozoneData([]);
           setTotal(0);
           console.error("Invalid response format:", response);
         }
       }
-      
-      // Log pagination details for debugging
-      console.log(`Fetched geozones: Page ${safePage}, Limit ${safeLimit}, Total ${response.total || 0}`);
     } catch (error) {
       console.error("Error fetching geozones:", error);
       toast.error("Failed to load geozones");

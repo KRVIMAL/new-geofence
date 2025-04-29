@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { debounce } from 'lodash';
 import {
   PencilIcon,
   ChevronLeftIcon,
@@ -10,7 +11,7 @@ import DeletePopover from "./DeletePopover";
 import Pagination from "./Pagination"; // Import our improved Pagination component
 
 interface GeozoneTableProps {
-  geozoneData: GeoZone[];
+  geozoneData: any;
   loading: boolean;
   searchText: string;
   setSearchText: (text: string) => void;
@@ -37,40 +38,48 @@ const GeozoneTable: React.FC<GeozoneTableProps> = ({
   total,
 }) => {
   const [isTableVisible, setIsTableVisible] = useState(true);
-  
+  const [searchInputValue, setSearchInputValue] = useState(searchText);
   // Ensure we have valid values for page and limit
   const safePage = !isNaN(page) && page > 0 ? page : 1;
   const safeLimit = !isNaN(limit) && limit > 0 ? limit : 10;
-  
   // Calculate total pages - this is crucial for pagination to work correctly
   const totalPages = Math.max(1, Math.ceil(total / safeLimit));
-  
+
   // Check if current page exceeds total pages after changing limit
   useEffect(() => {
     if (safePage > totalPages && totalPages > 0) {
       setPage(totalPages);
     }
   }, [safeLimit, total, safePage, totalPages, setPage]);
+
+  const debouncedSearch = useCallback(
+    debounce((value: string) => {
+      setSearchText(value);
+    }, 500),
+    [setSearchText]
+  );
   
+  useEffect(() => {
+    return () => {
+      debouncedSearch.cancel();
+    };
+  }, [debouncedSearch]);
+
   // Calculate row number for each item
   const getRowNumber = (index: number): number => {
     return (safePage - 1) * safeLimit + index + 1;
   };
-  
+
   // Toggle table visibility
   const toggleTable = () => {
     setIsTableVisible(!isTableVisible);
   };
 
-  // Debug logs to help troubleshoot pagination
-  useEffect(() => {
-    console.log("Pagination debug info:");
-    console.log("- Current page:", safePage);
-    console.log("- Items per page:", safeLimit);
-    console.log("- Total items:", total);
-    console.log("- Total pages calculated:", totalPages);
-    console.log("- Current data length:", geozoneData.length);
-  }, [safePage, safeLimit, total, totalPages, geozoneData.length]);
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInputValue(value); // Update local state immediately for UI
+    debouncedSearch(value);     // Debounce the actual search
+  };
 
   return (
     <div className="relative">
@@ -102,8 +111,8 @@ const GeozoneTable: React.FC<GeozoneTableProps> = ({
                 <input
                   type="text"
                   placeholder="Search geozone..."
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
+                  value={searchInputValue}
+                  onChange={handleSearchChange}
                   className="w-full p-2 pl-10 border border-gray-300 rounded-md bg-white"
                 />
                 <SearchIcon className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
@@ -137,14 +146,27 @@ const GeozoneTable: React.FC<GeozoneTableProps> = ({
                         </div>
                       </td>
                     </tr>
-                  ) : geozoneData.length === 0 ? (
+                  ) : !geozoneData ||
+                    (Array.isArray(geozoneData) && geozoneData.length === 0) ||
+                    (geozoneData.data &&
+                      Array.isArray(geozoneData.data) &&
+                      geozoneData.data.length === 0) ? (
                     <tr>
-                      <td colSpan={4} className="py-4 text-center text-gray-500">
+                      <td
+                        colSpan={4}
+                        className="py-4 text-center text-gray-500"
+                      >
                         No geozones found
                       </td>
                     </tr>
                   ) : (
-                    geozoneData.map((item, index) => (
+                    // Handle both array and nested data structure
+                    (Array.isArray(geozoneData)
+                      ? geozoneData
+                      : geozoneData.data && Array.isArray(geozoneData.data)
+                        ? geozoneData.data
+                        : []
+                    ).map((item: any, index: any) => (
                       <tr
                         key={item._id}
                         className={
@@ -190,12 +212,12 @@ const GeozoneTable: React.FC<GeozoneTableProps> = ({
             {/* Show pagination only if there are items */}
             {/* {total > 0 && ( */}
             <Pagination
-  currentPage={safePage}
-  totalItems={total}
-  limit={safeLimit}
-  onPageChange={setPage}
-  onLimitChange={setLimit}
-/>
+              currentPage={safePage}
+              totalItems={total}
+              limit={safeLimit}
+              onPageChange={setPage}
+              onLimitChange={setLimit}
+            />
             {/* )} */}
           </>
         )}

@@ -207,9 +207,6 @@ const Geozone = () => {
       isPrivate: formData.isPrivate,
       createdBy: localStorage.getItem("userName") || "admin",
     };
-
-    console.log("Submitting payload:", payload); // For debugging
-
     if (editMode && formData._id) {
       // Update existing geozone
       updateGeozoneShape(formData._id, payload);
